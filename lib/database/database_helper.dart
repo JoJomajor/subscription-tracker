@@ -3,11 +3,19 @@ import 'package:path/path.dart';
 import '../models/subscription.dart';
 
 class DatabaseHelper {
-  // Singleton паттерн - один экземпляр БД на всё приложение
+  // Singleton паттерн
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   factory DatabaseHelper() => _instance;
-  DatabaseHelper._internal();
+  
+  // Приватный конструктор с опциональным путём к БД
+  DatabaseHelper._internal({String? databasePath}) : _databasePath = databasePath;
+  
+  // Фабричный конструктор для тестов
+  factory DatabaseHelper.forTesting({String? databasePath}) {
+    return DatabaseHelper._internal(databasePath: databasePath);
+  }
 
+  final String? _databasePath;
   Database? _database;
 
   // Получаем базу данных (создаём если нет)
@@ -19,11 +27,19 @@ class DatabaseHelper {
 
   // Инициализация базы данных
   Future<Database> _initDatabase() async {
-    // Получаем путь к папке документов приложения
+    // Если путь задан (для тестов) — используем его
+    if (_databasePath != null) {
+      return await openDatabase(
+        _databasePath!,
+        version: 1,
+        onCreate: _onCreate,
+      );
+    }
+    
+    // Иначе — стандартный путь к БД
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'subscriptions.db');
 
-    // Открываем (или создаём) базу данных
     return await openDatabase(
       path,
       version: 1,
@@ -118,11 +134,16 @@ class DatabaseHelper {
   }
 
   // Подсчитать общую сумму трат в месяц
-  // Подсчитать общую сумму трат в месяц
-Future<double> getTotalMonthlySpending() async {
-  final subscriptions = await getActiveSubscriptions();
+  Future<double> getTotalMonthlySpending() async {
+    final subscriptions = await getActiveSubscriptions();
+    return subscriptions.fold<double>(0.0, (sum, sub) => sum + sub.monthlyPrice);
+  }
   
-  // Явно указываем тип <double> для fold
-  return subscriptions.fold<double>(0.0, (sum, sub) => sum + sub.monthlyPrice);
-}
+  // Закрыть базу данных (для тестов)
+  Future<void> close() async {
+    if (_database != null) {
+      await _database!.close();
+      _database = null;
+    }
+  }
 }

@@ -4,7 +4,6 @@ import 'package:subscription_tracker/database/database_helper.dart';
 import 'package:subscription_tracker/models/subscription.dart';
 
 void main() {
-  // Инициализируем sqflite для работы на компьютере (Windows)
   setUpAll(() {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
@@ -12,8 +11,13 @@ void main() {
 
   late DatabaseHelper dbHelper;
 
+  // Каждый тест использует свою in-memory БД
   setUp(() {
-    dbHelper = DatabaseHelper();
+    dbHelper = DatabaseHelper.forTesting(databasePath: ':memory:');
+  });
+
+  tearDown(() async {
+    await dbHelper.close();
   });
 
   group('Database Tests', () {
@@ -85,11 +89,6 @@ void main() {
     });
 
     test('Подсчёт общей суммы', () async {
-      final all = await dbHelper.getAllSubscriptions();
-      for (var sub in all) {
-        await dbHelper.deleteSubscription(sub.id!);
-      }
-
       await dbHelper.insertSubscription(Subscription(
         name: 'Sub1', price: 200, currency: '₽',
         cycle: BillingCycle.monthly, startDate: DateTime.now(), category: 'Test',

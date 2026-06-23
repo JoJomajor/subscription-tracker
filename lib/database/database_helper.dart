@@ -8,7 +8,7 @@ class DatabaseHelper {
   factory DatabaseHelper() => _instance;
   
   // Приватный конструктор с опциональным путём к БД
-  DatabaseHelper._internal({String? databasePath}) : _databasePath = databasePath;
+  DatabaseHelper._internal({this._databasePath});
   
   // Фабричный конструктор для тестов
   factory DatabaseHelper.forTesting({String? databasePath}) {
@@ -30,7 +30,7 @@ class DatabaseHelper {
     // Если путь задан (для тестов) — используем его
     if (_databasePath != null) {
       return await openDatabase(
-        _databasePath!,
+        _databasePath,
         version: 1,
         onCreate: _onCreate,
       );

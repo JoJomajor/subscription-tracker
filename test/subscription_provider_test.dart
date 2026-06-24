@@ -130,5 +130,22 @@ void main() {
       expect(categories, contains('Видео'));
       expect(categories, contains('Музыка'));
     });
+
+    test('Просроченная подписка определяется автоматически', () async {
+    // Подписка с датой в прошлом
+    final overdueSub = Subscription(
+      name: 'Test',
+      price: 100,
+      currency: '₽',
+      cycle: BillingCycle.monthly,
+      startDate: DateTime.now().subtract(const Duration(days: 35)), // месяц назад
+      category: 'Тест',
+    );
+    await provider.addSubscription(overdueSub);
+
+    expect(provider.overdueSubscriptions.length, 1);
+    expect(provider.activeSubscriptions.length, 0);
+    expect(provider.overdueSubscriptions.first.isOverdue, true);
+  });
   });
 }

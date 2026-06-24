@@ -15,7 +15,10 @@ class SubscriptionProvider extends ChangeNotifier {
   List<Subscription> get subscriptions => _subscriptions;
   
   List<Subscription> get activeSubscriptions => 
-      _subscriptions.where((sub) => sub.isActive).toList();
+    _subscriptions.where((sub) => sub.isActive && !sub.isOverdue).toList();
+
+  List<Subscription> get overdueSubscriptions => 
+    _subscriptions.where((sub) => sub.isOverdue).toList();  
   
   double get totalMonthlySpending => 
       activeSubscriptions.fold<double>(0.0, (sum, sub) => sum + sub.monthlyPrice);

@@ -113,4 +113,7 @@ DateTime get nextBillingDate {
     }
   }
 
+
+bool get isOverdue => isActive && nextBillingDate.isBefore(DateTime.now());
+
 }

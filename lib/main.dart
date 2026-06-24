@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'models/subscription.dart';
 import 'providers/subscription_provider.dart';
 import 'services/icon_service.dart';
+import 'services/icon_library.dart'; 
 void main() {
   runApp(
     // ← Оборачиваем в Provider
@@ -122,12 +123,16 @@ class SubscriptionScreen extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: _getCategoryColor(s.category),
-              child: Text(
-                s.name[0].toUpperCase(),
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-            ),
+  backgroundColor: _getCategoryColor(s.category),
+  child: Icon(
+    // Если пользователь выбрал иконку, используем её, 
+    // если нет — берем иконку из нашей библиотеки по категории
+    s.iconPath != null 
+        ? IconData(int.parse(s.iconPath!), fontFamily: 'MaterialIcons')
+        : IconLibrary.getIconForCategory(s.category),
+    color: Colors.white,
+  ),
+),
             title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text("${s.category} • ${_getCycleText(s.cycle)}"),
             trailing: Row(
@@ -252,6 +257,9 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
     _selectedCategory = widget.subscription?.category ?? 'Видео';
     _selectedCycle = widget.subscription?.cycle ?? BillingCycle.monthly;
     _selectedDate = widget.subscription?.startDate ?? DateTime.now();
+  if (widget.subscription?.iconPath != null) {
+    _selectedIcon = IconData(int.parse(widget.subscription!.iconPath!), fontFamily: 'MaterialIcons');
+  }
   }
 
   @override
@@ -325,12 +333,12 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
             // кнопка выбора картинки
             // Пример кнопки в форме
             ListTile(
-              leading: Icon(_selectedIcon ?? Icons.subscriptions),
-              title: Text(_selectedIcon == null ? "Выберите иконку" : "Иконка выбрана"),
-               onTap: () async {
-                final icon = await IconService.pickIcon(context);
-                if (icon != null) {
-                  setState(() => _selectedIcon = icon);
+  leading: Icon(_selectedIcon ?? IconLibrary.getIconForCategory(_selectedCategory)), // Показываем выбранную или дефолтную
+  title: Text(_selectedIcon == null ? "Выберите иконку" : "Иконка выбрана"),
+  onTap: () async {
+    final icon = await IconService.pickIcon(context);
+    if (icon != null) {
+      setState(() => _selectedIcon = icon); // Обновляем состояние
     }
   },
 ),
@@ -405,15 +413,19 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
 
     final provider = Provider.of<SubscriptionProvider>(context, listen: false);
     final price = double.parse(_priceController.text);
+    
+    // Получаем строку кода иконки
+    final iconCode = _selectedIcon?.codePoint.toString();
 
     if (widget.subscription != null) {
-      // Редактирование
+      // Редактирование: здесь вы не передавали iconPath в copyWith!
       final updated = widget.subscription!.copyWith(
         name: _nameController.text,
         price: price,
         category: _selectedCategory,
         cycle: _selectedCycle,
         startDate: _selectedDate,
+        iconPath: iconCode, // <-- ДОБАВИТЬ ЭТО
       );
       provider.updateSubscription(updated);
     } else {
@@ -425,8 +437,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
         cycle: _selectedCycle,
         startDate: _selectedDate,
         category: _selectedCategory,
-        // Добавляем сохранение иконки (сохраняем код иконки как строку)
-        iconPath: _selectedIcon?.codePoint.toString(), 
+        iconPath: iconCode, // Это у вас уже было верно
       );
       provider.addSubscription(newSub);
     }

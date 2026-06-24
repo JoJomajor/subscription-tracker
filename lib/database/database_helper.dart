@@ -58,7 +58,8 @@ class DatabaseHelper {
         cycle INTEGER NOT NULL,
         startDate TEXT NOT NULL,
         category TEXT NOT NULL,
-        isActive INTEGER NOT NULL DEFAULT 1
+        isActive INTEGER NOT NULL DEFAULT 1,
+        iconPath TEXT 
       )
     ''');
   }

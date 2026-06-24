@@ -19,7 +19,8 @@ final String currency;        // Валюта
 final BillingCycle cycle;     // Цикл оплаты (еженедельно/ежемесячно/ежегодно)
 final DateTime startDate;     // Дата начала
 final String category;        // Категория
-final bool isActive;          // Активна ли
+final bool isActive;
+final String? iconPath;          // Активна ли
 
 //Конструктор
 Subscription({
@@ -31,6 +32,7 @@ Subscription({
   required this.startDate,
   required this.category,
   this.isActive = true,
+  this.iconPath,
 });
 
 //Метод для копирования с изменениями
@@ -43,6 +45,7 @@ Subscription copyWith({
   DateTime? startDate,
   String? category,
   bool? isActive,
+  String? iconPath,
 }){
   return Subscription(
     id: id ?? this.id,
@@ -53,6 +56,7 @@ Subscription copyWith({
     startDate: startDate ?? this.startDate,
     category: category ?? this.category,
     isActive: isActive ?? this.isActive,
+    iconPath: iconPath ?? this.iconPath,
   );
 }
 
@@ -67,6 +71,7 @@ Map<String, dynamic> toMap() {
       'startDate': startDate.toIso8601String(),  // дата как строка
       'category': category,
       'isActive': isActive ? 1 : 0,  // SQLite не любит bool
+      'iconPath': iconPath,
     };
 }
 
@@ -82,6 +87,7 @@ factory Subscription.fromMap(Map<String, dynamic> map)
       startDate: DateTime.parse(map['startDate']),
       category: map['category'],
       isActive: map['isActive'] == 1,
+      iconPath: map['iconPath'],
     );
 }
 

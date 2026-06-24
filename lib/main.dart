@@ -281,6 +281,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
     }
   }
 
+  
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.subscription != null;
@@ -292,6 +293,45 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // --- Новый блок выбора иконки ---
+            Center(
+              child: InkWell(
+                onTap: () async {
+                  final icon = await IconService.pickIcon(context);
+                  if (icon != null) {
+                    setState(() => _selectedIcon = icon);
+                  }
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        _selectedIcon ?? IconLibrary.getIconForCategory(_selectedCategory),
+                        size: 48,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _selectedIcon == null ? "Нажмите для выбора" : "Иконка выбрана",
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            
             // Название
             TextFormField(
               controller: _nameController,
@@ -300,12 +340,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
                 hintText: "Netflix, Spotify...",
                 border: OutlineInputBorder(),
               ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Введите название';
-                }
-                return null;
-              },
+              validator: (value) => (value == null || value.isEmpty) ? 'Введите название' : null,
             ),
             const SizedBox(height: 16),
             
@@ -320,50 +355,28 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
                 suffixText: '₽',
               ),
               validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Введите цену';
-                }
-                if (double.tryParse(value) == null) {
-                  return 'Введите число';
-                }
+                if (value == null || value.isEmpty) return 'Введите цену';
+                if (double.tryParse(value) == null) return 'Введите число';
                 return null;
               },
             ),
             const SizedBox(height: 16),
-            // кнопка выбора картинки
-            // Пример кнопки в форме
-            ListTile(
-  leading: Icon(_selectedIcon ?? IconLibrary.getIconForCategory(_selectedCategory)), // Показываем выбранную или дефолтную
-  title: Text(_selectedIcon == null ? "Выберите иконку" : "Иконка выбрана"),
-  onTap: () async {
-    final icon = await IconService.pickIcon(context);
-    if (icon != null) {
-      setState(() => _selectedIcon = icon); // Обновляем состояние
-    }
-  },
-),
+            
             // Категория
             DropdownButtonFormField<String>(
-              initialValue: _selectedCategory,
+              value: _selectedCategory,
               decoration: const InputDecoration(
                 labelText: "Категория",
                 border: OutlineInputBorder(),
               ),
-              items: _categories.map((category) {
-                return DropdownMenuItem(
-                  value: category,
-                  child: Text(category),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() => _selectedCategory = value ?? 'Видео');
-              },
+              items: _categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
+              onChanged: (val) => setState(() => _selectedCategory = val!),
             ),
             const SizedBox(height: 16),
             
-            // Цикл оплаты
+            // Период
             DropdownButtonFormField<BillingCycle>(
-              initialValue: _selectedCycle,
+              value: _selectedCycle,
               decoration: const InputDecoration(
                 labelText: "Период оплаты",
                 border: OutlineInputBorder(),
@@ -373,17 +386,13 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
                 DropdownMenuItem(value: BillingCycle.monthly, child: Text('Ежемесячно')),
                 DropdownMenuItem(value: BillingCycle.yearly, child: Text('Ежегодно')),
               ],
-              onChanged: (value) {
-                setState(() => _selectedCycle = value ?? BillingCycle.monthly);
-              },
+              onChanged: (val) => setState(() => _selectedCycle = val!),
             ),
             const SizedBox(height: 16),
             
-            // Дата начала
+            // Дата
             ListTile(
-              title: Text(
-                "Дата начала: ${DateFormat('dd.MM.yyyy').format(_selectedDate)}",
-              ),
+              title: Text("Дата начала: ${DateFormat('dd.MM.yyyy').format(_selectedDate)}"),
               trailing: const Icon(Icons.calendar_today),
               onTap: _pickDate,
               shape: RoundedRectangleBorder(
@@ -393,14 +402,12 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
             ),
             const SizedBox(height: 32),
             
-            // Кнопка сохранения
+            // Кнопка
             FilledButton.icon(
               onPressed: _save,
               icon: const Icon(Icons.save),
               label: Text(isEditing ? "Сохранить изменения" : "Добавить подписку"),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
+              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
             ),
           ],
         ),

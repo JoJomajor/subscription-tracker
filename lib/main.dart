@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'models/subscription.dart';
 import 'providers/subscription_provider.dart';
-
+import 'services/icon_service.dart';
 void main() {
   runApp(
     // ← Оборачиваем в Provider
@@ -130,26 +130,26 @@ class SubscriptionScreen extends StatelessWidget {
             ),
             title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text("${s.category} • ${_getCycleText(s.cycle)}"),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  "${s.price.toStringAsFixed(0)} ${s.currency}",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                  onPressed: () => _showDeleteDialog(context, provider, s),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
+            trailing: Row(
+  mainAxisSize: MainAxisSize.min, // Важно: используем минимум места по горизонтали
+  mainAxisAlignment: MainAxisAlignment.end,
+  children: [
+    Text(
+      "${s.price.toStringAsFixed(0)} ${s.currency}",
+      style: TextStyle(
+        fontWeight: FontWeight.bold,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    ),
+    const SizedBox(width: 8), // Отступ между ценой и кнопкой
+    IconButton(
+      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+      onPressed: () => _showDeleteDialog(context, provider, s),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(), // Убирает лишние отступы вокруг кнопки
+    ),
+  ],
+),
             onTap: () {
               Navigator.push(
                 context, 
@@ -233,7 +233,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _priceController;
-  
+  IconData? _selectedIcon; 
   String _selectedCategory = 'Видео';
   BillingCycle _selectedCycle = BillingCycle.monthly;
   DateTime _selectedDate = DateTime.now();
@@ -322,7 +322,18 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
               },
             ),
             const SizedBox(height: 16),
-            
+            // кнопка выбора картинки
+            // Пример кнопки в форме
+            ListTile(
+              leading: Icon(_selectedIcon ?? Icons.subscriptions),
+              title: Text(_selectedIcon == null ? "Выберите иконку" : "Иконка выбрана"),
+               onTap: () async {
+                final icon = await IconService.pickIcon(context);
+                if (icon != null) {
+                  setState(() => _selectedIcon = icon);
+    }
+  },
+),
             // Категория
             DropdownButtonFormField<String>(
               initialValue: _selectedCategory,
@@ -414,6 +425,8 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
         cycle: _selectedCycle,
         startDate: _selectedDate,
         category: _selectedCategory,
+        // Добавляем сохранение иконки (сохраняем код иконки как строку)
+        iconPath: _selectedIcon?.codePoint.toString(), 
       );
       provider.addSubscription(newSub);
     }

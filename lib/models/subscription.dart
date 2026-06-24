@@ -67,11 +67,11 @@ Map<String, dynamic> toMap() {
       'name': name,
       'price': price,
       'currency': currency,
-      'cycle': cycle.index,  // сохраняем как число (0, 1, 2)
-      'startDate': startDate.toIso8601String(),  // дата как строка
+      'cycle': cycle.index,
+      'startDate': startDate.toIso8601String(),
       'category': category,
-      'isActive': isActive ? 1 : 0,  // SQLite не любит bool
-      'iconPath': iconPath,
+      'isActive': isActive ? 1 : 0,
+      'iconPath': iconPath, // Убедитесь, что эта строка есть!
     };
 }
 

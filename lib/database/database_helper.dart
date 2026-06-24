@@ -31,7 +31,7 @@ class DatabaseHelper {
     if (_databasePath != null) {
       return await openDatabase(
         _databasePath,
-        version: 1,
+        version: 2, // Мне пришлось... Прости... прошлая база перестала работать...
         onCreate: _onCreate,
       );
     }
@@ -42,7 +42,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2, // Мне пришлось... Прости... прошлая база перестала работать...
       onCreate: _onCreate,
     );
   }

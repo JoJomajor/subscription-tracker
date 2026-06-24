@@ -1,8 +1,5 @@
 
 
-//Перечисление для цикла оплаты
-//import 'package:flutter/material.dart';
-
 enum BillingCycle {
   weekly,
   monthly,
@@ -113,7 +110,26 @@ DateTime get nextBillingDate {
     }
   }
 
+// Подписка просрочена, если дата оплаты прошла
+bool get isOverdue => isActive && startDate.isBefore(DateTime.now());
 
-bool get isOverdue => isActive && nextBillingDate.isBefore(DateTime.now());
+// Метод для оплаты: возвращает новую подписку с обновлённой датой
+Subscription pay() {
+  DateTime nextDate;
+  switch (cycle) {
+    case BillingCycle.weekly:
+      nextDate = startDate.add(const Duration(days: 7));
+      break;
+    case BillingCycle.monthly:
+      nextDate = DateTime(startDate.year, startDate.month + 1, startDate.day);
+      break;
+    case BillingCycle.yearly:
+      nextDate = DateTime(startDate.year + 1, startDate.month, startDate.day);
+      break;
+  }
+  return copyWith(startDate: nextDate);
+}
+
+
 
 }

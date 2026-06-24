@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/subscription.dart';
+import '../models/payment_record.dart';
 import '../database/database_helper.dart';
 
 class SubscriptionProvider extends ChangeNotifier {
@@ -69,5 +70,28 @@ class SubscriptionProvider extends ChangeNotifier {
   List<String> get allCategories {
     final categories = _subscriptions.map((sub) => sub.category).toSet();
     return categories.toList()..sort();
+  }
+
+  // Метод оплаты подписки
+  Future<void> recordPayment(int subscriptionId) async {
+    final subscription = await getSubscriptionById(subscriptionId);
+    if (subscription == null) return;
+
+    // 1. Создаём запись об оплате
+    final paymentRecord = PaymentRecord(
+      subscriptionId: subscriptionId,
+      paymentDate: DateTime.now(),
+      amount: subscription.price,
+    );
+    await _dbHelper.insertPaymentRecord(paymentRecord);
+
+    // 2. Обновляем startDate на следующую дату оплаты
+    final updatedSubscription = subscription.pay();
+    await updateSubscription(updatedSubscription);
+  }
+
+  // Получить историю оплат для подписки
+  Future<List<PaymentRecord>> getPaymentHistory(int subscriptionId) async {
+    return await _dbHelper.getPaymentHistory(subscriptionId);
   }
 }

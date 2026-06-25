@@ -32,7 +32,7 @@ class DatabaseHelper {
     if (_databasePath != null) {
       return await openDatabase(
         _databasePath,
-        version: 2, // Мне пришлось... Прости... прошлая база перестала работать...
+        version: 3, // Мне пришлось... Прости... прошлая база перестала работать...
         onCreate: _onCreate,
       );
     }
@@ -43,7 +43,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2, // Мне пришлось... Прости... прошлая база перестала работать...
+      version: 3, // Мне пришлось... Прости... прошлая база перестала работать...
       onCreate: _onCreate,
     );
   }
@@ -58,6 +58,7 @@ class DatabaseHelper {
         currency TEXT NOT NULL,
         cycle INTEGER NOT NULL,
         startDate TEXT NOT NULL,
+        nextBillingDate TEXT NOT NULL,
         category TEXT NOT NULL,
         isActive INTEGER NOT NULL DEFAULT 1,
         iconPath TEXT 
@@ -65,13 +66,12 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-    CREATE TABLE payment_records (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      subscriptionId INTEGER NOT NULL,
-      paymentDate TEXT NOT NULL,
-      amount REAL NOT NULL,
-      FOREIGN KEY (subscriptionId) REFERENCES subscriptions(id)
-    )
+      CREATE TABLE payment_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        subscriptionId INTEGER NOT NULL,
+        paymentDate TEXT NOT NULL,
+        amount REAL NOT NULL
+      )
     ''');
   }
 

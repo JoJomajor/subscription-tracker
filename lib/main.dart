@@ -3,11 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'models/subscription.dart';
 import 'providers/subscription_provider.dart';
-import 'services/icon_service.dart';
-import 'services/icon_library.dart'; 
+import 'data/subscription_icons.dart';
+
 void main() {
   runApp(
-    // ← Оборачиваем в Provider
     ChangeNotifierProvider(
       create: (_) => SubscriptionProvider()..loadSubscriptions(),
       child: const MyApp(),
@@ -36,7 +35,7 @@ class MyApp extends StatelessWidget {
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
-  
+
   @override
   State<MainNavigation> createState() => _MainNavigationState();
 }
@@ -47,15 +46,15 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _selectedIndex == 0 
-        ? const SubscriptionScreen() 
-        : const SettingsScreen(),
+      body: _selectedIndex == 0
+          ? const SubscriptionScreen()
+          : const SettingsScreen(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (i) => setState(() => _selectedIndex = i),
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Главная"), 
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: "Настройки")
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Главная"),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: "Настройки"),
         ],
       ),
     );
@@ -64,37 +63,59 @@ class _MainNavigationState extends State<MainNavigation> {
 
 // ==================== ГЛАВНЫЙ ЭКРАН ====================
 
-class SubscriptionScreen extends StatelessWidget {
+class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
 
   @override
+  State<SubscriptionScreen> createState() => _SubscriptionScreenState();
+}
+
+class _SubscriptionScreenState extends State<SubscriptionScreen> {
+  int? _activeMenuId; // ID подписки, у которой сейчас открыто меню
+
+  @override
   Widget build(BuildContext context) {
-    // ← Получаем данные из Provider
     return Consumer<SubscriptionProvider>(
       builder: (context, provider, child) {
         final active = provider.activeSubscriptions;
-        final inactive = provider.subscriptions.where((s) => !s.isActive).toList();
+        final inactive =
+            provider.subscriptions.where((s) => !s.isActive).toList();
 
         return DefaultTabController(
           length: 2,
           child: Scaffold(
             appBar: AppBar(
               title: const Text("Подписки"),
-              bottom: const TabBar(tabs: [
-                Tab(text: "Активные"), 
-                Tab(text: "Неактивные")
-              ]),
+              bottom: const TabBar(
+                isScrollable: true,
+                tabs: [
+                  Tab(text: "Активные"),
+                  Tab(text: "Неактивные"),
+                ],
+              ),
             ),
-            body: TabBarView(
+            body: Stack(
               children: [
-                _buildList(context, provider, active),
-                _buildList(context, provider, inactive),
+                TabBarView(
+                  children: [
+                    _buildList(provider, active),
+                    _buildList(provider, inactive),
+                  ],
+                ),
+                if (_activeMenuId != null) ...[
+                  GestureDetector(
+                    onTap: () => setState(() => _activeMenuId = null),
+                    child: Container(color: Colors.black26),
+                  ),
+                  _buildFloatingMenu(provider),
+                ]
               ],
             ),
             floatingActionButton: FloatingActionButton(
               onPressed: () => Navigator.push(
-                context, 
-                MaterialPageRoute(builder: (_) => const AddSubscriptionScreen()),
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const AddSubscriptionScreen()),
               ),
               child: const Icon(Icons.add),
             ),
@@ -104,121 +125,105 @@ class SubscriptionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildList(
-    BuildContext context, 
-    SubscriptionProvider provider,
-    List<Subscription> list,
-  ) {
-    if (list.isEmpty) {
-      return const Center(
-        child: Text("Нет подписок", style: TextStyle(fontSize: 18, color: Colors.grey)),
-      );
-    }
+  // Меню с кнопками
+  Widget _buildFloatingMenu(SubscriptionProvider provider) {
+    final sub = provider.subscriptions
+        .where((s) => s.id == _activeMenuId)
+        .firstOrNull;
 
+    if (sub == null) return const SizedBox();
+
+    return Positioned(
+      right: 16,
+      bottom: 80,
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+          children: [
+            _menuButton(Icons.calendar_month, Colors.green, "Продлить", () {
+              provider.updateSubscription(sub.pay());
+              setState(() => _activeMenuId = null);
+            }),
+            _menuButton(
+              sub.isActive ? Icons.pause : Icons.play_arrow,
+              Colors.orange,
+              "Статус",
+              () {
+                provider.updateSubscription(
+                    sub.copyWith(isActive: !sub.isActive));
+                setState(() => _activeMenuId = null);
+              },
+            ),
+            _menuButton(Icons.edit, Colors.blue, "Изменить", () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        AddSubscriptionScreen(subscription: sub)),
+              );
+              setState(() => _activeMenuId = null);
+            }),
+            _menuButton(Icons.delete_forever, Colors.red, "Удалить", () {
+              provider.deleteSubscription(sub.id!);
+              setState(() => _activeMenuId = null);
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _menuButton(
+      IconData icon, Color color, String label, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: FloatingActionButton.small(
+        heroTag: label,
+        backgroundColor: color,
+        onPressed: onTap,
+        child: Icon(icon, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildList(SubscriptionProvider provider, List<Subscription> list) {
     return ListView.builder(
       itemCount: list.length,
       itemBuilder: (context, index) {
         final s = list[index];
+
+        // Иконка зависит ТОЛЬКО от выбора пользователя (PNG).
+        // Категория больше не влияет на иконку.
+        final bool hasIcon =
+            s.iconPath != null && s.iconPath!.isNotEmpty;
+
         return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: ListTile(
             leading: CircleAvatar(
-  backgroundColor: _getCategoryColor(s.category),
-  child: Icon(
-    // Если пользователь выбрал иконку, используем её, 
-    // если нет — берем иконку из нашей библиотеки по категории
-    s.iconPath != null 
-        ? IconData(int.parse(s.iconPath!), fontFamily: 'MaterialIcons')
-        : IconLibrary.getIconForCategory(s.category),
-    color: Colors.white,
-  ),
-),
-            title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text("${s.category} • ${_getCycleText(s.cycle)}"),
-            trailing: Row(
-  mainAxisSize: MainAxisSize.min, // Важно: используем минимум места по горизонтали
-  mainAxisAlignment: MainAxisAlignment.end,
-  children: [
-    Text(
-      "${s.price.toStringAsFixed(0)} ${s.currency}",
-      style: TextStyle(
-        fontWeight: FontWeight.bold,
-        color: Theme.of(context).colorScheme.primary,
-      ),
-    ),
-    const SizedBox(width: 8), // Отступ между ценой и кнопкой
-    IconButton(
-      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-      onPressed: () => _showDeleteDialog(context, provider, s),
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(), // Убирает лишние отступы вокруг кнопки
-    ),
-  ],
-),
-            onTap: () {
-              Navigator.push(
-                context, 
-                MaterialPageRoute(
-                  builder: (_) => AddSubscriptionScreen(subscription: s),
-                ),
-              );
-            },
+              backgroundColor: Theme.of(context)
+                  .colorScheme
+                  .primaryContainer
+                  .withOpacity(0.4),
+              child: hasIcon
+                  ? Padding(
+                      padding: const EdgeInsets.all(6.0),
+                      child: Image.asset(s.iconPath!),
+                    )
+                  : Icon(
+                      Icons.image_not_supported,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+            ),
+            title: Text(s.name),
+            subtitle: Text(
+                "Списание: ${DateFormat('dd.MM.yyyy').format(s.nextBillingDate)}"),
+            onTap: () => setState(() => _activeMenuId = s.id),
+            trailing: _activeMenuId == s.id
+                ? const Icon(Icons.close)
+                : const Icon(Icons.more_vert),
           ),
         );
       },
-    );
-  }
-
-  String _getCycleText(BillingCycle cycle) {
-    switch (cycle) {
-      case BillingCycle.weekly:
-        return 'в неделю';
-      case BillingCycle.monthly:
-        return 'в месяц';
-      case BillingCycle.yearly:
-        return 'в год';
-    }
-  }
-
-  Color _getCategoryColor(String category) {
-    switch (category) {
-      case 'Видео':
-        return Colors.red;
-      case 'Музыка':
-        return Colors.green;
-      case 'Игры':
-        return Colors.purple;
-      case 'Софт':
-        return Colors.blue;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  void _showDeleteDialog(
-    BuildContext context,
-    SubscriptionProvider provider,
-    Subscription subscription,
-  ) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Удалить подписку?'),
-        content: Text('Вы уверены, что хотите удалить "${subscription.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () {
-              provider.deleteSubscription(subscription.id!);
-              Navigator.pop(dialogContext);
-            },
-            child: const Text('Удалить', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -226,8 +231,8 @@ class SubscriptionScreen extends StatelessWidget {
 // ==================== ЭКРАН ДОБАВЛЕНИЯ/РЕДАКТИРОВАНИЯ ====================
 
 class AddSubscriptionScreen extends StatefulWidget {
-  final Subscription? subscription;  // null = добавление, не null = редактирование
-  
+  final Subscription? subscription; // null = добавление
+
   const AddSubscriptionScreen({super.key, this.subscription});
 
   @override
@@ -238,28 +243,35 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _priceController;
-  IconData? _selectedIcon; 
+
+  String? _selectedIconPath; // путь к выбранной PNG
   String _selectedCategory = 'Видео';
   BillingCycle _selectedCycle = BillingCycle.monthly;
   DateTime _selectedDate = DateTime.now();
 
-  final List<String> _categories = ['Видео', 'Музыка', 'Игры', 'Софт', 'Другое'];
+  final List<String> _categories = [
+    'Видео',
+    'Музыка',
+    'Игры',
+    'Софт',
+    'Другое'
+  ];
 
   @override
   void initState() {
     super.initState();
-    
-    // Если редактируем — заполняем поля из существующей подписки
-    _nameController = TextEditingController(text: widget.subscription?.name ?? '');
+
+    _nameController =
+        TextEditingController(text: widget.subscription?.name ?? '');
     _priceController = TextEditingController(
       text: widget.subscription?.price.toString() ?? '',
     );
     _selectedCategory = widget.subscription?.category ?? 'Видео';
     _selectedCycle = widget.subscription?.cycle ?? BillingCycle.monthly;
     _selectedDate = widget.subscription?.startDate ?? DateTime.now();
-  if (widget.subscription?.iconPath != null) {
-    _selectedIcon = IconData(int.parse(widget.subscription!.iconPath!), fontFamily: 'MaterialIcons');
-  }
+
+    // Загружаем выбранную ранее PNG-иконку
+    _selectedIconPath = widget.subscription?.iconPath;
   }
 
   @override
@@ -281,7 +293,68 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
     }
   }
 
-  
+  // Выбор PNG-иконки из списка
+  Future<void> _pickIcon() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) {
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Выберите иконку',
+                  style:
+                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 4,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                    ),
+                    itemCount: SubscriptionIcons.all.length,
+                    itemBuilder: (context, index) {
+                      final path = SubscriptionIcons.all[index];
+                      return GestureDetector(
+                        onTap: () => Navigator.pop(context, path),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: _selectedIconPath == path
+                                ? Border.all(color: Colors.blue, width: 2)
+                                : null,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Image.asset(path),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected != null) {
+      setState(() {
+        _selectedIconPath = selected;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.subscription != null;
@@ -293,33 +366,46 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // --- Новый блок выбора иконки ---
+            // --- Блок выбора иконки (только по нажатию) ---
             Center(
               child: InkWell(
-                onTap: () async {
-                  final icon = await IconService.pickIcon(context);
-                  if (icon != null) {
-                    setState(() => _selectedIcon = icon);
-                  }
-                },
+                onTap: _pickIcon,
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primaryContainer
+                        .withOpacity(0.3),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
+                    border: Border.all(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.5),
+                    ),
                   ),
                   child: Column(
                     children: [
-                      Icon(
-                        _selectedIcon ?? IconLibrary.getIconForCategory(_selectedCategory),
-                        size: 48,
-                        color: Theme.of(context).colorScheme.primary,
+                      SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: (_selectedIconPath != null &&
+                                _selectedIconPath!.isNotEmpty)
+                            ? Image.asset(_selectedIconPath!)
+                            : Icon(
+                                Icons.add_photo_alternate,
+                                size: 48,
+                                color:
+                                    Theme.of(context).colorScheme.primary,
+                              ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        _selectedIcon == null ? "Нажмите для выбора" : "Иконка выбрана",
+                        _selectedIconPath == null
+                            ? "Нажмите для выбора"
+                            : "Иконка выбрана",
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.bold,
@@ -331,7 +417,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            
+
             // Название
             TextFormField(
               controller: _nameController,
@@ -340,10 +426,11 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
                 hintText: "Netflix, Spotify...",
                 border: OutlineInputBorder(),
               ),
-              validator: (value) => (value == null || value.isEmpty) ? 'Введите название' : null,
+              validator: (value) =>
+                  (value == null || value.isEmpty) ? 'Введите название' : null,
             ),
             const SizedBox(height: 16),
-            
+
             // Цена
             TextFormField(
               controller: _priceController,
@@ -361,7 +448,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
               },
             ),
             const SizedBox(height: 16),
-            
+
             // Категория
             DropdownButtonFormField<String>(
               value: _selectedCategory,
@@ -369,11 +456,14 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
                 labelText: "Категория",
                 border: OutlineInputBorder(),
               ),
-              items: _categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
+              items: _categories
+                  .map((cat) =>
+                      DropdownMenuItem(value: cat, child: Text(cat)))
+                  .toList(),
               onChanged: (val) => setState(() => _selectedCategory = val!),
             ),
             const SizedBox(height: 16),
-            
+
             // Период
             DropdownButtonFormField<BillingCycle>(
               value: _selectedCycle,
@@ -382,17 +472,21 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
                 border: OutlineInputBorder(),
               ),
               items: const [
-                DropdownMenuItem(value: BillingCycle.weekly, child: Text('Еженедельно')),
-                DropdownMenuItem(value: BillingCycle.monthly, child: Text('Ежемесячно')),
-                DropdownMenuItem(value: BillingCycle.yearly, child: Text('Ежегодно')),
+                DropdownMenuItem(
+                    value: BillingCycle.weekly, child: Text('Еженедельно')),
+                DropdownMenuItem(
+                    value: BillingCycle.monthly, child: Text('Ежемесячно')),
+                DropdownMenuItem(
+                    value: BillingCycle.yearly, child: Text('Ежегодно')),
               ],
               onChanged: (val) => setState(() => _selectedCycle = val!),
             ),
             const SizedBox(height: 16),
-            
+
             // Дата
             ListTile(
-              title: Text("Дата начала: ${DateFormat('dd.MM.yyyy').format(_selectedDate)}"),
+              title: Text(
+                  "Дата начала: ${DateFormat('dd.MM.yyyy').format(_selectedDate)}"),
               trailing: const Icon(Icons.calendar_today),
               onTap: _pickDate,
               shape: RoundedRectangleBorder(
@@ -401,13 +495,15 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
               ),
             ),
             const SizedBox(height: 32),
-            
-            // Кнопка
+
+            // Кнопка сохранения
             FilledButton.icon(
               onPressed: _save,
               icon: const Icon(Icons.save),
-              label: Text(isEditing ? "Сохранить изменения" : "Добавить подписку"),
-              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+              label: Text(
+                  isEditing ? "Сохранить изменения" : "Добавить подписку"),
+              style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16)),
             ),
           ],
         ),
@@ -418,38 +514,61 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
   void _save() {
     if (!_formKey.currentState!.validate()) return;
 
-    final provider = Provider.of<SubscriptionProvider>(context, listen: false);
+    final provider =
+        Provider.of<SubscriptionProvider>(context, listen: false);
     final price = double.parse(_priceController.text);
-    
-    // Получаем строку кода иконки
-    final iconCode = _selectedIcon?.codePoint.toString();
+    final nextDate = _calculateNextDate(_selectedDate, _selectedCycle);
 
     if (widget.subscription != null) {
-      // Редактирование: здесь вы не передавали iconPath в copyWith!
-      final updated = widget.subscription!.copyWith(
+      final old = widget.subscription!;
+
+      final updated = old.copyWith(
+        id: old.id,
         name: _nameController.text,
         price: price,
         category: _selectedCategory,
         cycle: _selectedCycle,
         startDate: _selectedDate,
-        iconPath: iconCode, // <-- ДОБАВИТЬ ЭТО
+        nextBillingDate: nextDate,
+        iconPath: _selectedIconPath,
       );
+
       provider.updateSubscription(updated);
     } else {
-      // Добавление новой
       final newSub = Subscription(
         name: _nameController.text,
         price: price,
         currency: '₽',
         cycle: _selectedCycle,
         startDate: _selectedDate,
+        nextBillingDate: nextDate,
         category: _selectedCategory,
-        iconPath: iconCode, // Это у вас уже было верно
+        iconPath: _selectedIconPath,
       );
+
       provider.addSubscription(newSub);
     }
 
     Navigator.pop(context);
+  }
+
+  DateTime _calculateNextDate(DateTime start, BillingCycle cycle) {
+    switch (cycle) {
+      case BillingCycle.weekly:
+        return start.add(const Duration(days: 7));
+      case BillingCycle.monthly:
+        return DateTime(
+          start.year,
+          start.month + 1,
+          start.day.clamp(1, 28),
+        );
+      case BillingCycle.yearly:
+        return DateTime(
+          start.year + 1,
+          start.month,
+          start.day,
+        );
+    }
   }
 }
 
@@ -466,7 +585,6 @@ class SettingsScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Общая статистика
             Consumer<SubscriptionProvider>(
               builder: (context, provider, child) {
                 return Card(
@@ -494,8 +612,6 @@ class SettingsScreen extends StatelessWidget {
               },
             ),
             const SizedBox(height: 32),
-            
-            // Кнопка удаления всех
             ElevatedButton.icon(
               onPressed: () => _showClearDialog(context),
               icon: const Icon(Icons.delete_forever),
@@ -503,7 +619,8 @@ class SettingsScreen extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 32, vertical: 16),
               ),
             ),
           ],
@@ -525,8 +642,8 @@ class SettingsScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () async {
-              final provider = Provider.of<SubscriptionProvider>(context, listen: false);
-              // Удаляем все подписки
+              final provider = Provider.of<SubscriptionProvider>(context,
+                  listen: false);
               for (final sub in provider.subscriptions) {
                 await provider.deleteSubscription(sub.id!);
               }
@@ -534,7 +651,8 @@ class SettingsScreen extends StatelessWidget {
                 Navigator.pop(dialogContext);
               }
             },
-            child: const Text('Удалить все', style: TextStyle(color: Colors.red)),
+            child: const Text('Удалить все',
+                style: TextStyle(color: Colors.red)),
           ),
         ],
       ),

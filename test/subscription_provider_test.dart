@@ -49,13 +49,22 @@ void main() {
     });
 
     test('Подсчёт общей суммы', () async {
+      // Создаём подписки с датой в БУДУЩЕМ (не просроченные)
       await provider.addSubscription(Subscription(
-        name: 'Sub1', price: 200, currency: '₽',
-        cycle: BillingCycle.monthly, startDate: DateTime.now(), category: 'Test',
+        name: 'Sub1', 
+        price: 200, 
+        currency: '₽',
+        cycle: BillingCycle.monthly, 
+        startDate: DateTime.now().add(const Duration(days: 5)), // ← 5 дней в будущем
+        category: 'Test',
       ));
       await provider.addSubscription(Subscription(
-        name: 'Sub2', price: 300, currency: '₽',
-        cycle: BillingCycle.monthly, startDate: DateTime.now(), category: 'Test',
+        name: 'Sub2', 
+        price: 300, 
+        currency: '₽',
+        cycle: BillingCycle.monthly, 
+        startDate: DateTime.now().add(const Duration(days: 10)), // ← 10 дней в будущем
+        category: 'Test',
       ));
 
       expect(provider.totalMonthlySpending, 500);
@@ -129,6 +138,23 @@ void main() {
       expect(categories.length, 2);
       expect(categories, contains('Видео'));
       expect(categories, contains('Музыка'));
+    });
+
+    test('Просроченная подписка определяется автоматически', () async {
+      // Подписка с датой оплаты в прошлом
+      final overdueSub = Subscription(
+        name: 'Test',
+        price: 100,
+        currency: '₽',
+        cycle: BillingCycle.monthly,
+        startDate: DateTime.now().subtract(const Duration(days: 5)), // 5 дней назад
+        category: 'Тест',
+      );
+      await provider.addSubscription(overdueSub);
+
+      expect(provider.overdueSubscriptions.length, 1);
+      expect(provider.activeSubscriptions.length, 0);
+      expect(provider.overdueSubscriptions.first.isOverdue, true);
     });
   });
 }

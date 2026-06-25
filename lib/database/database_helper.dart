@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/subscription.dart';
+import '../models/payment_record.dart';
 
 class DatabaseHelper {
   // Singleton паттерн
@@ -62,6 +63,16 @@ class DatabaseHelper {
         iconPath TEXT 
       )
     ''');
+
+    await db.execute('''
+    CREATE TABLE payment_records (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscriptionId INTEGER NOT NULL,
+      paymentDate TEXT NOT NULL,
+      amount REAL NOT NULL,
+      FOREIGN KEY (subscriptionId) REFERENCES subscriptions(id)
+    )
+    ''');
   }
 
   // ========== CRUD ОПЕРАЦИИ ==========
@@ -75,6 +86,7 @@ class DatabaseHelper {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
+
 
   // READ - Получить все подписки
   Future<List<Subscription>> getAllSubscriptions() async {
@@ -146,5 +158,22 @@ class DatabaseHelper {
       await _database!.close();
       _database = null;
     }
+  }
+
+  // CRUD для PaymentRecord:
+  Future<int> insertPaymentRecord(PaymentRecord record) async {
+  final db = await database;
+  return await db.insert('payment_records', record.toMap());
+  }
+
+  Future<List<PaymentRecord>> getPaymentHistory(int subscriptionId) async {
+  final db = await database;
+  final maps = await db.query(
+    'payment_records',
+    where: 'subscriptionId = ?',
+    whereArgs: [subscriptionId],
+    orderBy: 'paymentDate DESC',
+  );
+  return List.generate(maps.length, (i) => PaymentRecord.fromMap(maps[i]));
   }
 }

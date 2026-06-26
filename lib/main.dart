@@ -186,39 +186,77 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
+  
   Widget _buildList(SubscriptionProvider provider, List<Subscription> list) {
-  return ListView.builder(
-    itemCount: list.length,
-    itemBuilder: (context, index) {
-      final s = list[index];
-      final bool hasIcon = s.iconPath != null && s.iconPath!.isNotEmpty;
-      // it s ok
-      return Card(
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4),
-            child: hasIcon
-                ? Padding(
-                    padding: const EdgeInsets.all(6.0),
-                    child: Image.asset(s.iconPath!),
-                  )
-                : Icon(Icons.subscriptions, color: Theme.of(context).colorScheme.primary),
+    if (list.isEmpty) {
+      return const Center(child: Text("Список пуст", style: TextStyle(color: Colors.grey)));
+    }
+
+    return ListView.builder(
+      itemCount: list.length,
+      itemBuilder: (context, index) {
+        final s = list[index];
+        final bool hasIcon = s.iconPath != null && s.iconPath!.isNotEmpty;
+
+        return Dismissible(
+          key: Key(s.id.toString()), // Ключ важен для работы свайпа
+          direction: DismissDirection.endToStart, // Свайп только справа налево
+          background: Container(
+            color: Colors.red,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            child: const Icon(Icons.delete, color: Colors.white),
           ),
-          title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-          // Добавили цену и дату в subtitle
-          subtitle: Text(
-            "${s.price.toStringAsFixed(0)} ${s.currency} • Списание: ${DateFormat('dd.MM.yyyy').format(s.nextBillingDate)}",
-            style: TextStyle(color: Colors.grey[700]),
+          onDismissed: (_) => provider.deleteSubscription(s.id!),
+          child: Card(
+            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4),
+                child: hasIcon
+                    ? Padding(padding: const EdgeInsets.all(6.0), child: Image.asset(s.iconPath!))
+                    : Icon(Icons.subscriptions, color: Theme.of(context).colorScheme.primary),
+              ),
+              title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
+                  Text(
+                    "Списание: ${DateFormat('dd.MM.yyyy').format(s.nextBillingDate)}",
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+                ],
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Индикатор цены и цикла
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      "${s.price.toStringAsFixed(0)} ${s.currency}",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Кнопка меню
+                  IconButton(
+                    icon: const Icon(Icons.more_vert),
+                    onPressed: () => setState(() => _activeMenuId = s.id),
+                  ),
+                ],
+              ),
+            ),
           ),
-          onTap: () => setState(() => _activeMenuId = s.id),
-          trailing: _activeMenuId == s.id 
-              ? const Icon(Icons.close) 
-              : const Icon(Icons.more_vert),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 }
 // ==================== ЭКРАН ДОБАВЛЕНИЯ/РЕДАКТИРОВАНИЯ ====================
 

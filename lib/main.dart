@@ -192,7 +192,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     itemBuilder: (context, index) {
       final s = list[index];
       final bool hasIcon = s.iconPath != null && s.iconPath!.isNotEmpty;
-
+      // it s ok
       return Card(
         child: ListTile(
           leading: CircleAvatar(

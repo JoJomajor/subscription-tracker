@@ -187,47 +187,39 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Widget _buildList(SubscriptionProvider provider, List<Subscription> list) {
-    return ListView.builder(
-      itemCount: list.length,
-      itemBuilder: (context, index) {
-        final s = list[index];
+  return ListView.builder(
+    itemCount: list.length,
+    itemBuilder: (context, index) {
+      final s = list[index];
+      final bool hasIcon = s.iconPath != null && s.iconPath!.isNotEmpty;
 
-        // Иконка зависит ТОЛЬКО от выбора пользователя (PNG).
-        // Категория больше не влияет на иконку.
-        final bool hasIcon =
-            s.iconPath != null && s.iconPath!.isNotEmpty;
-
-        return Card(
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context)
-                  .colorScheme
-                  .primaryContainer
-                  .withOpacity(0.4),
-              child: hasIcon
-                  ? Padding(
-                      padding: const EdgeInsets.all(6.0),
-                      child: Image.asset(s.iconPath!),
-                    )
-                  : Icon(
-                      Icons.image_not_supported,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-            ),
-            title: Text(s.name),
-            subtitle: Text(
-                "Списание: ${DateFormat('dd.MM.yyyy').format(s.nextBillingDate)}"),
-            onTap: () => setState(() => _activeMenuId = s.id),
-            trailing: _activeMenuId == s.id
-                ? const Icon(Icons.close)
-                : const Icon(Icons.more_vert),
+      return Card(
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4),
+            child: hasIcon
+                ? Padding(
+                    padding: const EdgeInsets.all(6.0),
+                    child: Image.asset(s.iconPath!),
+                  )
+                : Icon(Icons.subscriptions, color: Theme.of(context).colorScheme.primary),
           ),
-        );
-      },
-    );
-  }
+          title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+          // Добавили цену и дату в subtitle
+          subtitle: Text(
+            "${s.price.toStringAsFixed(0)} ${s.currency} • Списание: ${DateFormat('dd.MM.yyyy').format(s.nextBillingDate)}",
+            style: TextStyle(color: Colors.grey[700]),
+          ),
+          onTap: () => setState(() => _activeMenuId = s.id),
+          trailing: _activeMenuId == s.id 
+              ? const Icon(Icons.close) 
+              : const Icon(Icons.more_vert),
+        ),
+      );
+    },
+  );
 }
-
+}
 // ==================== ЭКРАН ДОБАВЛЕНИЯ/РЕДАКТИРОВАНИЯ ====================
 
 class AddSubscriptionScreen extends StatefulWidget {

@@ -86,6 +86,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           child: Scaffold(
             appBar: AppBar(
               title: const Text("Подписки"),
+              actions: [
+                TextButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AddSubscriptionScreen()),
+                  ),
+                  icon: const Icon(Icons.add),
+                  label: const Text("Создать"),
+                ),
+              ],
               bottom: const TabBar(
                 isScrollable: true,
                 tabs: [
@@ -94,6 +104,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 ],
               ),
             ),
+            // ✅ ДОБАВЛЕНО: Содержимое для вкладок
             body: Stack(
               children: [
                 TabBarView(
@@ -102,23 +113,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     _buildList(provider, inactive),
                   ],
                 ),
-                if (_activeMenuId != null) ...[
-                  GestureDetector(
-                    onTap: () => setState(() => _activeMenuId = null),
-                    child: Container(color: Colors.black26),
-                  ),
-                  _buildFloatingMenu(provider),
-                ]
+                if (_activeMenuId != null) _buildFloatingMenu(provider),
               ],
             ),
-            floatingActionButton: FloatingActionButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const AddSubscriptionScreen()),
-              ),
-              child: const Icon(Icons.add),
-            ),
+            // ✅ ДОБАВЛЕНО: Кнопка закрытия меню
+            floatingActionButton: _activeMenuId != null
+                ? FloatingActionButton(
+                    onPressed: () => setState(() => _activeMenuId = null),
+                    child: const Icon(Icons.close),
+                  )
+                : null,
           ),
         );
       },
@@ -186,77 +190,56 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  
   Widget _buildList(SubscriptionProvider provider, List<Subscription> list) {
-    if (list.isEmpty) {
-      return const Center(child: Text("Список пуст", style: TextStyle(color: Colors.grey)));
-    }
-
-    return ListView.builder(
-      itemCount: list.length,
-      itemBuilder: (context, index) {
-        final s = list[index];
-        final bool hasIcon = s.iconPath != null && s.iconPath!.isNotEmpty;
-
-        return Dismissible(
-          key: Key(s.id.toString()), // Ключ важен для работы свайпа
-          direction: DismissDirection.endToStart, // Свайп только справа налево
-          background: Container(
-            color: Colors.red,
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20),
-            child: const Icon(Icons.delete, color: Colors.white),
-          ),
-          onDismissed: (_) => provider.deleteSubscription(s.id!),
-          child: Card(
-            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4),
-                child: hasIcon
-                    ? Padding(padding: const EdgeInsets.all(6.0), child: Image.asset(s.iconPath!))
-                    : Icon(Icons.subscriptions, color: Theme.of(context).colorScheme.primary),
-              ),
-              title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  Text(
-                    "Списание: ${DateFormat('dd.MM.yyyy').format(s.nextBillingDate)}",
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
-                ],
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Индикатор цены и цикла
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondaryContainer,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      "${s.price.toStringAsFixed(0)} ${s.currency}",
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Кнопка меню
-                  IconButton(
-                    icon: const Icon(Icons.more_vert),
-                    onPressed: () => setState(() => _activeMenuId = s.id),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
+  if (list.isEmpty) {
+    return const Center(child: Text("Список пуст", style: TextStyle(color: Colors.grey)));
   }
+
+  return ListView.builder(
+    itemCount: list.length,
+    itemBuilder: (context, index) {
+      final s = list[index];
+      final bool hasIcon = s.iconPath != null && s.iconPath!.isNotEmpty;
+
+      return Card(
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.4),
+            child: hasIcon
+                ? Padding(padding: const EdgeInsets.all(4.0), child: Image.asset(s.iconPath!))
+                : Icon(Icons.subscriptions, color: Theme.of(context).colorScheme.primary),
+          ),
+          title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              // ✅ ИСПРАВЛЕНО: добавлен период оплаты
+              Text(
+                "${s.price.toStringAsFixed(0)} ${s.currency} ${s.cycleName} • ${s.category}",
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              // ✅ Точная дата списания
+              Text(
+                "Следующее списание: ${DateFormat('dd.MM.yyyy').format(s.nextBillingDate)}",
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+            ],
+          ),
+          trailing: IconButton(
+            icon: const Icon(Icons.more_vert),
+            onPressed: () => setState(() => _activeMenuId = s.id),
+          ),
+        ),
+      );
+    },
+  );
+}
 }
 // ==================== ЭКРАН ДОБАВЛЕНИЯ/РЕДАКТИРОВАНИЯ ====================
 
@@ -274,10 +257,10 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
   late TextEditingController _nameController;
   late TextEditingController _priceController;
 
-  String? _selectedIconPath; // путь к выбранной PNG
+  String? _selectedIconPath;
   String _selectedCategory = 'Видео';
   BillingCycle _selectedCycle = BillingCycle.monthly;
-  DateTime _selectedDate = DateTime.now();
+  DateTime _selectedDate = DateTime.now(); // ✅ это дата СЛЕДУЮЩЕГО списания
 
   final List<String> _categories = [
     'Видео',
@@ -291,16 +274,15 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
   void initState() {
     super.initState();
 
-    _nameController =
-        TextEditingController(text: widget.subscription?.name ?? '');
+    _nameController = TextEditingController(text: widget.subscription?.name ?? '');
     _priceController = TextEditingController(
       text: widget.subscription?.price.toString() ?? '',
     );
     _selectedCategory = widget.subscription?.category ?? 'Видео';
     _selectedCycle = widget.subscription?.cycle ?? BillingCycle.monthly;
-    _selectedDate = widget.subscription?.startDate ?? DateTime.now();
-
-    // Загружаем выбранную ранее PNG-иконку
+    
+    // ✅ ИСПРАВЛЕНО: при редактировании берём nextBillingDate, при создании - сегодня
+    _selectedDate = widget.subscription?.nextBillingDate ?? DateTime.now();
     _selectedIconPath = widget.subscription?.iconPath;
   }
 
@@ -323,7 +305,6 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
     }
   }
 
-  // Выбор PNG-иконки из списка
   Future<void> _pickIcon() async {
     final selected = await showModalBottomSheet<String>(
       context: context,
@@ -337,14 +318,12 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
               children: [
                 const Text(
                   'Выберите иконку',
-                  style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 Expanded(
                   child: GridView.builder(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 4,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
@@ -396,7 +375,6 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // --- Блок выбора иконки (только по нажатию) ---
             Center(
               child: InkWell(
                 onTap: _pickIcon,
@@ -427,8 +405,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
                             : Icon(
                                 Icons.add_photo_alternate,
                                 size: 48,
-                                color:
-                                    Theme.of(context).colorScheme.primary,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                       ),
                       const SizedBox(height: 8),
@@ -448,7 +425,6 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Название
             TextFormField(
               controller: _nameController,
               decoration: const InputDecoration(
@@ -461,7 +437,6 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Цена
             TextFormField(
               controller: _priceController,
               keyboardType: TextInputType.number,
@@ -479,7 +454,6 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Категория
             DropdownButtonFormField<String>(
               value: _selectedCategory,
               decoration: const InputDecoration(
@@ -487,14 +461,12 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
                 border: OutlineInputBorder(),
               ),
               items: _categories
-                  .map((cat) =>
-                      DropdownMenuItem(value: cat, child: Text(cat)))
+                  .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
                   .toList(),
               onChanged: (val) => setState(() => _selectedCategory = val!),
             ),
             const SizedBox(height: 16),
 
-            // Период
             DropdownButtonFormField<BillingCycle>(
               value: _selectedCycle,
               decoration: const InputDecoration(
@@ -513,10 +485,10 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Дата
+            // ✅ ИЗМЕНЕНО: теперь это дата СЛЕДУЮЩЕГО списания
             ListTile(
               title: Text(
-                  "Дата начала: ${DateFormat('dd.MM.yyyy').format(_selectedDate)}"),
+                  "Дата следующего списания: ${DateFormat('dd.MM.yyyy').format(_selectedDate)}"),
               trailing: const Icon(Icons.calendar_today),
               onTap: _pickDate,
               shape: RoundedRectangleBorder(
@@ -526,7 +498,6 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
             ),
             const SizedBox(height: 32),
 
-            // Кнопка сохранения
             FilledButton.icon(
               onPressed: _save,
               icon: const Icon(Icons.save),
@@ -544,64 +515,39 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
   void _save() {
     if (!_formKey.currentState!.validate()) return;
 
-    final provider =
-        Provider.of<SubscriptionProvider>(context, listen: false);
+    final provider = Provider.of<SubscriptionProvider>(context, listen: false);
     final price = double.parse(_priceController.text);
-    final nextDate = _calculateNextDate(_selectedDate, _selectedCycle);
 
     if (widget.subscription != null) {
+      // ✅ Редактирование: сохраняем ID и startDate
       final old = widget.subscription!;
-
       final updated = old.copyWith(
-        id: old.id,
         name: _nameController.text,
         price: price,
         category: _selectedCategory,
         cycle: _selectedCycle,
-        startDate: _selectedDate,
-        nextBillingDate: nextDate,
+        nextBillingDate: _selectedDate, // пользователь может изменить
         iconPath: _selectedIconPath,
       );
-
       provider.updateSubscription(updated);
     } else {
+      // ✅ Создание: startDate = сегодня, nextBillingDate = выбранная дата
       final newSub = Subscription(
         name: _nameController.text,
         price: price,
         currency: '₽',
         cycle: _selectedCycle,
-        startDate: _selectedDate,
-        nextBillingDate: nextDate,
+        startDate: DateTime.now(),
+        nextBillingDate: _selectedDate,
         category: _selectedCategory,
         iconPath: _selectedIconPath,
       );
-
       provider.addSubscription(newSub);
     }
 
     Navigator.pop(context);
   }
-
-  DateTime _calculateNextDate(DateTime start, BillingCycle cycle) {
-    switch (cycle) {
-      case BillingCycle.weekly:
-        return start.add(const Duration(days: 7));
-      case BillingCycle.monthly:
-        return DateTime(
-          start.year,
-          start.month + 1,
-          start.day.clamp(1, 28),
-        );
-      case BillingCycle.yearly:
-        return DateTime(
-          start.year + 1,
-          start.month,
-          start.day,
-        );
-    }
-  }
 }
-
 // ==================== ЭКРАН НАСТРОЕК ====================
 
 class SettingsScreen extends StatelessWidget {

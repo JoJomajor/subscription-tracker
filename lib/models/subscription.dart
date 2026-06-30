@@ -11,7 +11,7 @@ class Subscription {
   final String currency;
   final BillingCycle cycle;
   final DateTime startDate;
-  final DateTime nextBillingDate; // ✅ НОВОЕ
+  final DateTime nextBillingDate;
   final String category;
   final bool isActive;
   final String? iconPath;
@@ -23,36 +23,36 @@ class Subscription {
     required this.currency,
     required this.cycle,
     required this.startDate,
-    required this.nextBillingDate, // ✅
+    required this.nextBillingDate,
     required this.category,
     this.isActive = true,
     this.iconPath,
   });
 
   Subscription copyWith({
-  int? id,
-  String? name,
-  double? price,
-  String? category,
-  BillingCycle? cycle,
-  DateTime? startDate,
-  DateTime? nextBillingDate,
-  bool? isActive,
-  String? iconPath,
-}) {
-  return Subscription(
-    id: id ?? this.id, // ✅ ВАЖНО
-    name: name ?? this.name,
-    price: price ?? this.price,
-    category: category ?? this.category,
-    cycle: cycle ?? this.cycle,
-    startDate: startDate ?? this.startDate,
-    nextBillingDate: nextBillingDate ?? this.nextBillingDate,
-    isActive: isActive ?? this.isActive,
-    iconPath: iconPath ?? this.iconPath,
-    currency: this.currency,
-  );
-}
+    int? id,
+    String? name,
+    double? price,
+    String? category,
+    BillingCycle? cycle,
+    DateTime? startDate,
+    DateTime? nextBillingDate,
+    bool? isActive,
+    String? iconPath,
+  }) {
+    return Subscription(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      price: price ?? this.price,
+      category: category ?? this.category,
+      cycle: cycle ?? this.cycle,
+      startDate: startDate ?? this.startDate,
+      nextBillingDate: nextBillingDate ?? this.nextBillingDate,
+      isActive: isActive ?? this.isActive,
+      iconPath: iconPath ?? this.iconPath,
+      currency: this.currency,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -62,7 +62,7 @@ class Subscription {
       'currency': currency,
       'cycle': cycle.index,
       'startDate': startDate.toIso8601String(),
-      'nextBillingDate': nextBillingDate.toIso8601String(), // ✅
+      'nextBillingDate': nextBillingDate.toIso8601String(),
       'category': category,
       'isActive': isActive ? 1 : 0,
       'iconPath': iconPath,
@@ -77,7 +77,7 @@ class Subscription {
       currency: map['currency'],
       cycle: BillingCycle.values[map['cycle']],
       startDate: DateTime.parse(map['startDate']),
-      nextBillingDate: DateTime.parse(map['nextBillingDate']), // ✅
+      nextBillingDate: DateTime.parse(map['nextBillingDate']),
       category: map['category'],
       isActive: map['isActive'] == 1,
       iconPath: map['iconPath'],
@@ -86,7 +86,7 @@ class Subscription {
   
   bool get isOverdue => isActive && nextBillingDate.isBefore(DateTime.now());
 
-  // ✅ правильная логика оплаты
+  // ✅ ИСПРАВЛЕНО: оплата продлевает от ТЕКУЩЕЙ даты списания
   Subscription pay() {
     DateTime newNext;
     switch (cycle) {
@@ -94,26 +94,44 @@ class Subscription {
         newNext = nextBillingDate.add(const Duration(days: 7));
         break;
       case BillingCycle.monthly:
-        newNext = DateTime(nextBillingDate.year, nextBillingDate.month + 1, nextBillingDate.day);
+        newNext = DateTime(
+          nextBillingDate.year,
+          nextBillingDate.month + 1,
+          nextBillingDate.day,
+        );
         break;
       case BillingCycle.yearly:
-        newNext = DateTime(nextBillingDate.year + 1, nextBillingDate.month, nextBillingDate.day);
+        newNext = DateTime(
+          nextBillingDate.year + 1,
+          nextBillingDate.month,
+          nextBillingDate.day,
+        );
         break;
     }
 
-    return copyWith(
-      startDate: nextBillingDate,
-      nextBillingDate: newNext,
-    );
+    return copyWith(nextBillingDate: newNext);
   }
+
   double get monthlyPrice {
-  switch (cycle) {
-    case BillingCycle.weekly:
-      return price * 4.33;
-    case BillingCycle.monthly:
-      return price;
-    case BillingCycle.yearly:
-      return price / 12;
+    switch (cycle) {
+      case BillingCycle.weekly:
+        return price * 4.33;
+      case BillingCycle.monthly:
+        return price;
+      case BillingCycle.yearly:
+        return price / 12;
+    }
   }
-}
+
+  // ✅ ДОБАВЛЕНО: текстовое представление периода
+  String get cycleName {
+    switch (cycle) {
+      case BillingCycle.weekly:
+        return 'в неделю';
+      case BillingCycle.monthly:
+        return 'в месяц';
+      case BillingCycle.yearly:
+        return 'в год';
+    }
+  }
 }

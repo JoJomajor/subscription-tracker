@@ -651,7 +651,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // ✅ МЕТОД ДЛЯ ОТПРАВКИ ТЕСТОВОГО УВЕДОМЛЕНИЯ
   void _sendTestNotification(BuildContext context) async {
-    // Показываем диалог с объяснением
+  // 1. Проверяем, есть ли уже разрешение
+  final hasPermission = await NotificationPermissionHandler.checkPermission();
+
+  if (!hasPermission) {
+    // 2. Если разрешения нет — показываем объясняющий диалог
     final shouldProceed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -681,51 +685,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (shouldProceed != true) return;
 
-    // Запрашиваем системное разрешение
-    final hasPermission = await NotificationPermissionHandler.requestPermission();
+    // 3. Запрашиваем системное разрешение
+    final granted = await NotificationPermissionHandler.requestPermission();
 
-    if (!hasPermission) {
-      if (mounted) {
+    if (!granted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Уведомления отключены. Включите их в настройках устройства.'),
+            content: Text('Уведомления отключены. Вы можете включить их в настройках устройства.'),
             duration: Duration(seconds: 3),
           ),
         );
       }
       return;
     }
-
-    // Разрешение получено — отправляем уведомление через 20 секунд
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Уведомление будет отправлено через 20 секунд...'),
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
-
-    // Ждём 20 секунд
-    await Future.delayed(const Duration(seconds: 20));
-
-    // Отправляем уведомление
-    final notificationService = NotificationService();
-    await notificationService.sendNotification(
-      title: '🔔 Напоминание о подписке',
-      body: 'Через 24 часа будет списание за Netflix (500 ₽)',
-      payload: 'test_notification',
-    );
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Тестовое уведомление отправлено!'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
   }
+
+  // 4. Разрешение есть — отправляем уведомление СРАЗУ
+  final notificationService = NotificationService();
+  await notificationService.sendNotification(
+    title: '🔔 Напоминание о подписке',
+    body: 'Через 24 часа будет списание за Netflix (500 ₽)',
+    payload: 'test_notification',
+  );
+
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('✅ Тестовое уведомление отправлено!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+}
 
   void _showClearDialog(BuildContext context) {
     showDialog(

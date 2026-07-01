@@ -84,7 +84,20 @@ class Subscription {
     );
   }
   
-  bool get isOverdue => isActive && nextBillingDate.isBefore(DateTime.now());
+  bool get isOverdue {
+  if (!isActive) return false;
+  
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final billingDay = DateTime(
+    nextBillingDate.year, 
+    nextBillingDate.month, 
+    nextBillingDate.day
+  );
+  
+  // Просрочена только если дата списания СТРОГО раньше сегодняшнего дня
+  return billingDay.isBefore(today);
+}
 
   // ✅ ИСПРАВЛЕНО: оплата продлевает от ТЕКУЩЕЙ даты списания
   Subscription pay() {

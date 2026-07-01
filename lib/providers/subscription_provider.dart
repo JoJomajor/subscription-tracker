@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../models/subscription.dart';
 import '../models/payment_record.dart';
 import '../database/database_helper.dart';
+import '../services/notification_scheduler.dart';
 
 class SubscriptionProvider extends ChangeNotifier {
   final DatabaseHelper _dbHelper;
@@ -21,34 +22,59 @@ class SubscriptionProvider extends ChangeNotifier {
   double get totalMonthlySpending => 
       activeSubscriptions.fold<double>(0.0, (sum, sub) => sum + sub.monthlyPrice);
   
-  // ДОБАВЛЕНО для тестов:
   double get totalYearlySpending => totalMonthlySpending * 12;
   
   Future<void> loadSubscriptions() async {
     _subscriptions = await _dbHelper.getAllSubscriptions();
     notifyListeners();
+    
+    // ✅ Перепланируем все уведомления при запуске приложения
+    for (final sub in _subscriptions) {
+      if (sub.isActive) {
+        await NotificationScheduler.scheduleForSubscription(sub);
+      }
+    }
   }
   
   Future<void> addSubscription(Subscription subscription) async {
-    await _dbHelper.insertSubscription(subscription);
-    await loadSubscriptions();
+    final id = await _dbHelper.insertSubscription(subscription);
+    final newSub = subscription.copyWith(id: id);
+    
+    _subscriptions.add(newSub);
+    notifyListeners();
+    
+    // ✅ ПЛАНИРУЕМ УВЕДОМЛЕНИЕ для новой подписки
+    await NotificationScheduler.scheduleForSubscription(newSub);
   }
   
   Future<void> updateSubscription(Subscription subscription) async {
     await _dbHelper.updateSubscription(subscription);
-    await loadSubscriptions();
+    final index = _subscriptions.indexWhere((s) => s.id == subscription.id);
+    if (index != -1) {
+      _subscriptions[index] = subscription;
+      notifyListeners();
+    }
+    
+    // ✅ ПЕРЕПЛАНИРУЕМ УВЕДОМЛЕНИЕ при изменении подписки
+    await NotificationScheduler.rescheduleForSubscription(subscription);
   }
   
   Future<void> deleteSubscription(int id) async {
+    // Находим подписку перед удалением
+    final sub = _subscriptions.firstWhere((s) => s.id == id);
+    
     await _dbHelper.deleteSubscription(id);
-    await loadSubscriptions();
+    _subscriptions.removeWhere((s) => s.id == id);
+    notifyListeners();
+    
+    // ✅ ОТМЕНЯЕМ УВЕДОМЛЕНИЕ при удалении подписки
+    await NotificationScheduler.cancelForSubscription(sub);
   }
   
   Future<Subscription?> getSubscriptionById(int id) async {
     return await _dbHelper.getSubscriptionById(id);
   }
 
-  // ДОБАВЛЕНО для тестов:
   List<Subscription> filterByCategory(String category) {
     return _subscriptions.where((sub) => sub.category == category).toList();
   }
@@ -74,6 +100,8 @@ class SubscriptionProvider extends ChangeNotifier {
       amount: subscription.price,
     );
     await _dbHelper.insertPaymentRecord(paymentRecord);
+    
+    // Продлеваем подписку — updateSubscription автоматически перепланирует уведомление
     await updateSubscription(subscription.pay());
   }
 

@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'models/subscription.dart';
 import 'providers/subscription_provider.dart';
 import 'data/subscription_icons.dart';
+import 'services/notification_service.dart';          
+import 'services/notification_permission_handler.dart';
 
 void main() {
   runApp(
@@ -571,9 +573,14 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
 }
 // ==================== ЭКРАН НАСТРОЕК ====================
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -609,6 +616,8 @@ class SettingsScreen extends StatelessWidget {
               },
             ),
             const SizedBox(height: 32),
+            
+            // ✅ КНОПКА УДАЛЕНИЯ (уже была)
             ElevatedButton.icon(
               onPressed: () => _showClearDialog(context),
               icon: const Icon(Icons.delete_forever),
@@ -620,11 +629,95 @@ class SettingsScreen extends StatelessWidget {
                     horizontal: 32, vertical: 16),
               ),
             ),
+            
+            const SizedBox(height: 16),
+            
+            // ✅ НОВАЯ КНОПКА ДЛЯ ТЕСТОВОГО УВЕДОМЛЕНИЯ
+            ElevatedButton.icon(
+              onPressed: () => _sendTestNotification(context),
+              icon: const Icon(Icons.notifications_active),
+              label: const Text("Отправить тестовое уведомление"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
+
+  // ✅ МЕТОД ДЛЯ ОТПРАВКИ ТЕСТОВОГО УВЕДОМЛЕНИЯ
+  void _sendTestNotification(BuildContext context) async {
+  // 1. Проверяем, есть ли уже разрешение
+  final hasPermission = await NotificationPermissionHandler.checkPermission();
+
+  if (!hasPermission) {
+    // 2. Если разрешения нет — показываем объясняющий диалог
+    final shouldProceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.notifications, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('Разрешить уведомления?'),
+          ],
+        ),
+        content: const Text(
+          'SubQ будет отправлять напоминания за 24 часа до оплаты подписок, '
+          'чтобы вы не пропустили платежи и избежали неожиданных списаний.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Разрешить'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldProceed != true) return;
+
+    // 3. Запрашиваем системное разрешение
+    final granted = await NotificationPermissionHandler.requestPermission();
+
+    if (!granted) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Уведомления отключены. Вы можете включить их в настройках устройства.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+  }
+
+  // 4. Разрешение есть — отправляем уведомление СРАЗУ
+  final notificationService = NotificationService();
+  await notificationService.sendNotification(
+    title: '🔔 Напоминание о подписке',
+    body: 'Через 24 часа будет списание за Netflix (500 ₽)',
+    payload: 'test_notification',
+  );
+
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('✅ Тестовое уведомление отправлено!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+}
 
   void _showClearDialog(BuildContext context) {
     showDialog(

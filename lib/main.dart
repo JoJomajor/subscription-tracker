@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'models/subscription.dart';
 import 'providers/subscription_provider.dart';
 import 'data/subscription_icons.dart';
+import 'services/notification_service.dart';          
+import 'services/notification_permission_handler.dart';
 
 void main() {
   runApp(
@@ -571,9 +573,14 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
 }
 // ==================== ЭКРАН НАСТРОЕК ====================
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -609,6 +616,8 @@ class SettingsScreen extends StatelessWidget {
               },
             ),
             const SizedBox(height: 32),
+            
+            // ✅ КНОПКА УДАЛЕНИЯ (уже была)
             ElevatedButton.icon(
               onPressed: () => _showClearDialog(context),
               icon: const Icon(Icons.delete_forever),
@@ -620,10 +629,102 @@ class SettingsScreen extends StatelessWidget {
                     horizontal: 32, vertical: 16),
               ),
             ),
+            
+            const SizedBox(height: 16),
+            
+            // ✅ НОВАЯ КНОПКА ДЛЯ ТЕСТОВОГО УВЕДОМЛЕНИЯ
+            ElevatedButton.icon(
+              onPressed: () => _sendTestNotification(context),
+              icon: const Icon(Icons.notifications_active),
+              label: const Text("Отправить тестовое уведомление"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  // ✅ МЕТОД ДЛЯ ОТПРАВКИ ТЕСТОВОГО УВЕДОМЛЕНИЯ
+  void _sendTestNotification(BuildContext context) async {
+    // Показываем диалог с объяснением
+    final shouldProceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.notifications, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('Разрешить уведомления?'),
+          ],
+        ),
+        content: const Text(
+          'SubQ будет отправлять напоминания за 24 часа до оплаты подписок, '
+          'чтобы вы не пропустили платежи и избежали неожиданных списаний.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Разрешить'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldProceed != true) return;
+
+    // Запрашиваем системное разрешение
+    final hasPermission = await NotificationPermissionHandler.requestPermission();
+
+    if (!hasPermission) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Уведомления отключены. Включите их в настройках устройства.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Разрешение получено — отправляем уведомление через 20 секунд
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Уведомление будет отправлено через 20 секунд...'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+
+    // Ждём 20 секунд
+    await Future.delayed(const Duration(seconds: 20));
+
+    // Отправляем уведомление
+    final notificationService = NotificationService();
+    await notificationService.sendNotification(
+      title: '🔔 Напоминание о подписке',
+      body: 'Через 24 часа будет списание за Netflix (500 ₽)',
+      payload: 'test_notification',
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Тестовое уведомление отправлено!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   void _showClearDialog(BuildContext context) {

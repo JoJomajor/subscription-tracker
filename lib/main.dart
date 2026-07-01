@@ -223,15 +223,25 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ),
               title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  Text(
-                    "Списание: ${DateFormat('dd.MM.yyyy').format(s.nextBillingDate)}",
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
-                ],
-              ),
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    const SizedBox(height: 4),
+    // Добавляем отображение категории
+    Text(
+      s.category, // <-- ВАШЕ ИСПРАВЛЕНИЕ
+      style: TextStyle(
+        fontSize: 12,
+        color: Theme.of(context).colorScheme.primary,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    const SizedBox(height: 2),
+    Text(
+      "Списание: ${DateFormat('dd.MM.yyyy').format(s.nextBillingDate)}",
+      style: TextStyle(color: Colors.grey[700], fontSize: 12),
+    ),
+  ],
+),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
